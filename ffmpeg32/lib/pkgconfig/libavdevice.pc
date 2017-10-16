@@ -1,0 +1,14 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libavdevice
+Description: FFmpeg device handling library
+Version: 57.1.100
+Requires: 
+Requires.private: libavfilter >= 6.65.100, libswscale >= 4.2.100, libavresample >= 3.1.0, libavformat >= 57.56.101, libavcodec >= 57.64.101, libswresample >= 2.3.100, libavutil >= 55.34.101
+Conflicts:
+Libs: -L${libdir}  -lavdevice 
+Libs.private: ws2_32.lib vfw32.lib user32.lib gdi32.lib psapi.lib ole32.lib strmiids.lib uuid.lib oleaut32.lib shlwapi.lib secur32.lib -libpath:C:\projects\avbuild\tools\VS2013x86\lib\pkgconfig/../../lib mfx.lib psapi.lib advapi32.lib shell32.lib user32.lib
+Cflags: -I${includedir}
