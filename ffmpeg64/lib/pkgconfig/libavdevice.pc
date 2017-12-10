@@ -1,14 +1,14 @@
 prefix=/usr/local
 exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include
+libdir=/usr/local/lib
+includedir=/usr/local/include
 
 Name: libavdevice
 Description: FFmpeg device handling library
-Version: 57.1.100
+Version: 57.10.100
 Requires: 
-Requires.private: libavfilter >= 6.65.100, libswscale >= 4.2.100, libavresample >= 3.1.0, libavformat >= 57.56.101, libavcodec >= 57.64.101, libswresample >= 2.3.100, libavutil >= 55.34.101
+Requires.private: libavfilter >= 6.107.100, libavresample >= 3.7.0, libswscale >= 4.8.100, libavformat >= 57.83.100, libavcodec >= 57.107.100, libswresample >= 2.9.100, libavutil >= 55.78.100
 Conflicts:
 Libs: -L${libdir}  -lavdevice 
-Libs.private: ws2_32.lib vfw32.lib user32.lib gdi32.lib psapi.lib ole32.lib strmiids.lib uuid.lib oleaut32.lib shlwapi.lib secur32.lib -libpath:C:\projects\avbuild\tools\VS2015x64\lib\pkgconfig/../../lib mfx.lib psapi.lib advapi32.lib shell32.lib user32.lib
+Libs.private: gdi32.lib psapi.lib ole32.lib strmiids.lib uuid.lib oleaut32.lib shlwapi.lib user32.lib -libpath:C:\projects\avbuild\tools\VS2017x64\lib\pkgconfig/../../lib mfx.lib ws2_32.lib vfw32.lib user32.lib secur32.lib -libpath:C:\projects\avbuild\tools\VS2017x64\lib\pkgconfig/../../lib mfx.lib psapi.lib advapi32.lib shell32.lib ole32.lib user32.lib
 Cflags: -I${includedir}

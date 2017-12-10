@@ -1,2 +1,2 @@
-configure --extra-version=QtAV --disable-doc --disable-debug --enable-shared --disable-static --enable-runtime-cpudetect --enable-hwaccels --enable-libmfx --enable-avresample --disable-postproc --toolchain=msvc --extra-ldexeflags='-SUBSYSTEM:CONSOLE,5.01' --enable-pic --extra-cflags="-MD" --extra-ldflags="-NODEFAULTLIB:libcmt" --extra-libs="user32.lib"
-3.2.4
+configure --extra-version=QtAV --disable-doc --disable-debug --enable-shared --disable-static --enable-runtime-cpudetect --enable-libmfx --enable-avresample --disable-postproc --toolchain=msvc --extra-ldexeflags='-SUBSYSTEM:CONSOLE,5.01' --enable-pic --extra-cflags="-MD -D_WIN32_WINNT=0x0501" --extra-ldflags="-SUBSYSTEM:CONSOLE -NODEFAULTLIB:libcmt" --extra-libs="user32.lib"
+3.4
