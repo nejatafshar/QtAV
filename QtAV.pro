@@ -1,15 +1,15 @@
-include(root.pri)
+#include(root.pri)
 
 TEMPLATE = subdirs
 CONFIG -= ordered
-SUBDIRS = libqtav tools
+SUBDIRS = libqtav #tools
 libqtav.file = src/libQtAV.pro
-!no-widgets {
-  SUBDIRS += libqtavwidgets
-  libqtavwidgets.file = widgets/libQtAVWidgets.pro
-  libqtavwidgets.depends = libqtav
-  examples.depends += libqtavwidgets #TODO: enable widgets based examples
-}
+#!no-widgets {
+#  SUBDIRS += libqtavwidgets
+#  libqtavwidgets.file = widgets/libQtAVWidgets.pro
+#  libqtavwidgets.depends = libqtav
+#  examples.depends += libqtavwidgets #TODO: enable widgets based examples
+#}
 #greaterThan(QT_MAJOR_VERSION, 4) {
 #  # qtHaveModule does not exist in Qt5.0
 #  isEqual(QT_MINOR_VERSION, 0)|qtHaveModule(quick) {
@@ -19,14 +19,14 @@ libqtav.file = src/libQtAV.pro
 #    examples.depends += libqmlav
 #  }
 #}
-!no-examples {
-  SUBDIRS += examples
-  examples.depends += libqtav
-}
-!cross_compile:!no-tests {
-  SUBDIRS += tests
-  tests.depends += libqtav libqtavwidgets
-}
+#!no-examples {
+#  SUBDIRS += examples
+#  examples.depends += libqtav
+#}
+#!cross_compile:!no-tests {
+#  SUBDIRS += tests
+#  tests.depends += libqtav libqtavwidgets
+#}
 OTHER_FILES += README.md TODO.txt Changelog
 OTHER_FILES += templates/vo.h templates/vo.cpp templates/COPYRIGHT.h templates/mkclass.sh
 OTHER_FILES += \
@@ -77,11 +77,11 @@ unix:!mac {
 mac|ios {
   !no-videotoolbox: OptionalDepends *= videotoolbox
 }
-runConfigTests()
-!config_avresample:!config_swresample {
-  error("libavresample or libswresample is required. Setup your environment correctly then delete $$BUILD_DIR/.qmake.conf and run qmake again")
-}
+#runConfigTests()
+#!config_avresample:!config_swresample {
+#  error("libavresample or libswresample is required. Setup your environment correctly then delete $$BUILD_DIR/.qmake.conf and run qmake again")
+#}
 PACKAGE_VERSION = $$QTAV_VERSION
 PACKAGE_NAME= QtAV
-include(pack.pri)
+#include(pack.pri)
 #packageSet($$QTAV_VERSION, QtAV)

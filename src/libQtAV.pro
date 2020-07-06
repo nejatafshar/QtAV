@@ -663,7 +663,7 @@ MODULE_VERSION = $$VERSION
 #use Qt version. limited by qmake
 # windows: Qt5AV.dll, not Qt1AV.dll
 !mac_framework: MODULE_VERSION = $${QT_MAJOR_VERSION}.$${QT_MINOR_VERSION}.$${QT_PATCH_VERSION}
-!contains(QMAKE_HOST.os, Windows):include($$PROJECTROOT/deploy.pri)
+#!contains(QMAKE_HOST.os, Windows):include($$PROJECTROOT/deploy.pri)
 
 
 SOURCES += \
