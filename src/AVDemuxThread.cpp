@@ -28,7 +28,6 @@
 #include <QtCore/QTime>
 #include "utils/Logger.h"
 #include <QTimer>
-#include <QEventLoop>
 
 #define RESUME_ONCE_ON_SEEK 0
 
@@ -430,14 +429,7 @@ void AVDemuxThread::stop()
         while (t->isRunning()) {
             qDebug() << "stopping thread " << t;
             t->stop();
-            // wait to finish
-            QEventLoop loop;
-            connect(t, &AVThread::finished, &loop, &QEventLoop::quit);
-            QTimer timer;
-            timer.setSingleShot(true);
-            connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
-            timer.start(500);
-            loop.exec();
+            t->wait(500);
         }
     }
     pause(false);
