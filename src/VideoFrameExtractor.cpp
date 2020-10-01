@@ -55,7 +55,7 @@ public:
         if (!isRunning())
             return;
         scheduleStop();
-        wait();
+        wait(10000);
     }
 
     unsigned long timeout_ms;
