@@ -521,6 +521,12 @@ void VideoFrameExtractor::extract()
     d.thread.addTask(new ExtractTask(this, position()));
 }
 
+void VideoFrameExtractor::abort()
+{
+    DPTR_D(VideoFrameExtractor);
+    d.abort_seek = true;
+}
+
 void VideoFrameExtractor::extractInternal(qint64 pos)
 {
     DPTR_D(VideoFrameExtractor);

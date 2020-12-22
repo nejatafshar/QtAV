@@ -89,6 +89,7 @@ public Q_SLOTS:
      * before position+precision will be extracted. Otherwise, the given position frame will be extracted.
      */
     void extract();
+    void abort();
 private Q_SLOTS:
     void extractInternal(qint64 pos);
 
