@@ -97,6 +97,7 @@ public:
 
 protected:
     virtual void run() {
+        setTerminationEnabled(true);
         while (!stop) {
             QRunnable *task = tasks.take();
             if (task) {
@@ -157,7 +158,9 @@ public:
     }
     ~VideoFrameExtractorPrivate() {
         // stop first before demuxer and decoder close to avoid running new seek task after demuxer is closed.
+        abort_seek = true;
         thread.waitStop();
+        thread.terminate();
         releaseResourceInternal();
     }
     bool checkAndOpen() {
