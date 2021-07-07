@@ -461,6 +461,9 @@ private:
     QList<QuickAudioFilter*> m_afilters;
     QList<QuickVideoFilter*> m_vfilters;
     QStringList m_ao;
+
+    QTimer m_setSourceTimer;
+    QUrl m_lastSource;
 };
 
 #endif // QTAV_QML_AVPLAYER_H

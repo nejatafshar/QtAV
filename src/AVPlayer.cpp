@@ -144,6 +144,26 @@ AVPlayer::AVPlayer(QObject *parent) :
      });
 
     connect(&d->demuxer,&AVDemuxer::recordFinished,this,&AVPlayer::recordFinished);
+
+
+    loaderThreadPool->setMaxThreadCount(300);
+
+    class LoadWorker : public QRunnable {
+    public:
+        LoadWorker(AVPlayer *player) : m_player(player) {}
+        virtual void run() {
+            if (!m_player)
+                return;
+            m_player->playInternal();
+        }
+    private:
+        AVPlayer* m_player;
+    };
+    connect(this, &AVPlayer::loaded, this, [this]() {
+        if(!d->shouldLoadInternal)
+            return;
+        loaderThreadPool()->start(new LoadWorker(this));
+    });
 }
 
 AVPlayer::~AVPlayer()
@@ -1310,13 +1330,31 @@ bool AVPlayer::load()
 
 void AVPlayer::play()
 {
-    //FIXME: bad delay after play from here
-    if (isPlaying()) {
-        qDebug("play() when playing");
-        if (!d->checkSourceChange())
-            return;
-        stop();
+    if(d->async_load) {
+        class LoadWorker : public QRunnable {
+        public:
+            LoadWorker(AVPlayer *player, Private * p) : m_player(player),m_private(p)  {}
+            virtual void run() {
+                if (!m_player)
+                    return;
+                m_player->stop();
+                bool ret;
+                QMetaObject::invokeMethod(m_player,&AVPlayer::load,Qt::BlockingQueuedConnection, &ret);
+                if (!ret) {
+                    qWarning("load error");
+                    return;
+                }
+                m_private->shouldLoadInternal = true;
+            }
+        private:
+            AVPlayer* m_player;
+            Private * m_private;
+        };
+        loaderThreadPool()->start(new LoadWorker(this, d.get()));
+        return;
     }
+    else
+        stop();
     if (!load()) {
         qWarning("load error");
         return;
@@ -1325,7 +1363,7 @@ void AVPlayer::play()
         playInternal();
         return;
     }
-    connect(this, SIGNAL(loaded()), this, SLOT(playInternal()));
+    d->shouldLoadInternal = true;
 }
 
 void AVPlayer::playInternal()
@@ -1338,8 +1376,12 @@ void AVPlayer::playInternal()
     d->start_position_norm = normalizedPosition(d->start_position);
     d->stop_position_norm = normalizedPosition(d->stop_position);
     // FIXME: if call play() frequently playInternal may not be called if disconnect here
-    disconnect(this, SIGNAL(loaded()), this, SLOT(playInternal()));
-    if (!d->setupAudioThread(this)) {
+    d->shouldLoadInternal = false;
+    bool ret;
+    QMetaObject::invokeMethod(this, [this, &ret]() {
+        ret = d->setupAudioThread(this);
+    }, Qt::BlockingQueuedConnection);
+    if (!ret) {
         d->read_thread->setAudioThread(0); //set 0 before delete. ptr is used in demux thread when set 0
         if (d->athread) {
             qDebug("release audio thread.");
@@ -1347,7 +1389,10 @@ void AVPlayer::playInternal()
             d->athread = 0;//shared ptr?
         }
     }
-    if (!d->setupVideoThread(this)) {
+    QMetaObject::invokeMethod(this, [this, &ret]() {
+        ret = d->setupVideoThread(this);
+    }, Qt::BlockingQueuedConnection);
+    if (!ret) {
         d->read_thread->setVideoThread(0); //set 0 before delete. ptr is used in demux thread when set 0
         if (d->vthread) {
             qDebug("release video thread.");
@@ -1396,7 +1441,7 @@ void AVPlayer::playInternal()
     d->read_thread->waitForStarted();
     if (d->timer_id < 0) {
         //d->timer_id = startNotifyTimer(); //may fail if not in this thread
-        QMetaObject::invokeMethod(this, "startNotifyTimer", Qt::AutoConnection);
+        QMetaObject::invokeMethod(this, &AVPlayer::startNotifyTimer, Qt::BlockingQueuedConnection);
     }
     d->state = PlayingState;
     if (d->repeat_current < 0)
@@ -1411,8 +1456,12 @@ void AVPlayer::playInternal()
     
     d->was_stepping = false;
 
-    Q_EMIT stateChanged(PlayingState);
-    Q_EMIT started(); //we called stop(), so must emit started()
+    QMetaObject::invokeMethod(this, [this]() {
+        Q_EMIT stateChanged(PlayingState);
+    }, Qt::BlockingQueuedConnection);
+    QMetaObject::invokeMethod(this, [this]() {
+        Q_EMIT started(); //we called stop(), so must emit started()
+    }, Qt::BlockingQueuedConnection);
 }
 
 void AVPlayer::stopFromDemuxerThread()

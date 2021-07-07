@@ -98,6 +98,11 @@ void QmlAVPlayer::classBegin()
 
     m_metaData.reset(new MediaMetaData());
 
+    m_setSourceTimer.setInterval(100);
+    connect(&m_setSourceTimer,&QTimer::timeout, this, [this] () {
+       setSource(m_lastSource);
+    });
+
     Q_EMIT mediaObjectChanged();
 }
 
@@ -149,6 +154,16 @@ void QmlAVPlayer::setSource(const QUrl &url)
 {
     if (mSource == url)
         return;
+
+    if(const auto& s =status(); s==Loading || s==Loaded || s ==Stalled || s ==Buffering) {
+        m_lastSource = url;
+        if(!m_setSourceTimer.isActive())
+            m_setSourceTimer.start();
+        return;
+    }
+    else
+        m_setSourceTimer.stop();
+
     mSource = url;
     if (url.isLocalFile() || url.scheme().isEmpty()
             || url.scheme().startsWith("qrc")
@@ -175,7 +190,7 @@ void QmlAVPlayer::setSource(const QUrl &url)
         mErrorString = tr("No error");
         Q_EMIT error(mError, mErrorString);
         Q_EMIT errorChanged();
-        stop(); // TODO: no stop for autoLoad?
+//        stop(); // TODO: no stop for autoLoad?
 //        if (mAutoLoad)
 //            mpPlayer->load();
         if (mAutoLoad) {

@@ -171,6 +171,8 @@ public:
 
     AVPlayer * q;
 
+    bool shouldLoadInternal = false;
+
     int disconnectTimeout = 5;
 
     QElapsedTimer elapsedTimer;
