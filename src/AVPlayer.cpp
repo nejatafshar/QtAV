@@ -1337,6 +1337,7 @@ void AVPlayer::play()
             virtual void run() {
                 if (!m_player)
                     return;
+                m_private->reset_state = true;
                 m_player->stop();
                 bool ret;
                 QMetaObject::invokeMethod(m_player,&AVPlayer::load,Qt::BlockingQueuedConnection, &ret);

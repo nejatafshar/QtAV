@@ -464,6 +464,7 @@ private:
 
     QTimer m_setSourceTimer;
     QUrl m_lastSource;
+    int m_setSourceTryCount = 0;
 };
 
 #endif // QTAV_QML_AVPLAYER_H

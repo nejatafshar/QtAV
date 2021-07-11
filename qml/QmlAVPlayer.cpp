@@ -100,6 +100,7 @@ void QmlAVPlayer::classBegin()
 
     m_setSourceTimer.setInterval(100);
     connect(&m_setSourceTimer,&QTimer::timeout, this, [this] () {
+       ++m_setSourceTryCount;
        setSource(m_lastSource);
     });
 
@@ -152,17 +153,25 @@ QByteArray QmlAVPlayer::sourceBytes() const
 
 void QmlAVPlayer::setSource(const QUrl &url)
 {
-    if (mSource == url)
-        return;
-
-    if(const auto& s =status(); s==Loading || s==Loaded || s ==Stalled || s ==Buffering) {
+    QUrl src;
+    if (const auto& s = status();
+        s == Loading || s == Loaded || s == Stalled || s == Buffering) {
         m_lastSource = url;
-        if(!m_setSourceTimer.isActive())
+        if (!m_setSourceTimer.isActive()) {
+            m_setSourceTryCount = 0;
             m_setSourceTimer.start();
-        return;
-    }
-    else
+        }
+        if (m_setSourceTryCount == 0 && s == Buffering)
+            src = "";
+        else
+            return;
+    } else {
+        src = url;
         m_setSourceTimer.stop();
+    }
+
+    if (mSource == src)
+        return;
 
     mSource = url;
     if (url.isLocalFile() || url.scheme().isEmpty()
