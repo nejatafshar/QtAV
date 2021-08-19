@@ -89,3 +89,5 @@ python/QtAVWidgets
 
 #cache
 *.swp
+
+ffmpegBin/
