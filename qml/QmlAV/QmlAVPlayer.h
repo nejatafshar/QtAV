@@ -90,6 +90,7 @@ class QmlAVPlayer : public QObject, public QQmlParserStatus
     Q_PROPERTY(int bufferSize READ bufferSize WRITE setBufferSize NOTIFY bufferSizeChanged)
     Q_PROPERTY(BufferMode bufferMode READ bufferMode WRITE setBufferMode NOTIFY bufferModeChanged)
     Q_PROPERTY(qreal frameRate READ frameRate WRITE setFrameRate NOTIFY frameRateChanged)
+    Q_PROPERTY(bool realtimeDecode READ realtimeDecode WRITE setRealtimeDecode NOTIFY realtimeDecodeChanged)
     Q_PROPERTY(QVariantMap mediaData READ mediaData NOTIFY mediaDataTimerTriggered)
     Q_PROPERTY(int mediaDataTimerInterval READ mediaDataTimerInterval WRITE setMediaDataTimerInterval NOTIFY mediaDataTimerIntervalChanged)
     Q_PROPERTY(int disconnectTimeout READ disconnectTimeout WRITE setDisconnectTimeout NOTIFY disconnectTimeoutChanged)
@@ -292,6 +293,9 @@ public:
     qreal frameRate() const;
     void setFrameRate(qreal value);
 
+    bool realtimeDecode() const;
+    void setRealtimeDecode(bool value);
+
     QVariantMap mediaData() const;
 
     int mediaDataTimerInterval() const;
@@ -385,6 +389,7 @@ Q_SIGNALS:
     void bufferSizeChanged();
     void bufferModeChanged();
     void frameRateChanged();
+    void realtimeDecodeChanged();
     void mediaDataTimerTriggered();
     void mediaDataTimerStarted();
     void mediaDataTimerIntervalChanged();

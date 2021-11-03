@@ -339,6 +339,8 @@ public:
      */
     void setFrameRate(qreal value);
     qreal forcedFrameRate() const;
+    void setRealtimeDecode(bool value);
+    bool realtimeDecode() const;
     //Statistics& statistics();
     const Statistics& statistics() const;
     /*!

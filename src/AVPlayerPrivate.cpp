@@ -108,6 +108,7 @@ AVPlayer::Private::Private(AVPlayer *player)
     , seek_type(AccurateSeek)
     , interrupt_timeout(30000)
     , force_fps(0)
+    , realtimeDecode{false}
     , notify_interval(-500)
     , status(NoMedia)
     , state(AVPlayer::StoppedState)
@@ -223,6 +224,11 @@ void AVPlayer::Private::applyFrameRate()
     }
     ao->setSpeed(r);
     clock->setSpeed(r);
+}
+
+void AVPlayer::Private::applyRealtimeDecode()
+{
+    vthread->setRealtimeDecode(realtimeDecode);
 }
 
 void AVPlayer::Private::initStatistics()

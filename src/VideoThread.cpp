@@ -41,12 +41,13 @@ namespace QtAV {
 class VideoThreadPrivate : public AVThreadPrivate
 {
 public:
-    VideoThreadPrivate():
+    VideoThreadPrivate(VideoThread* vt):
         AVThreadPrivate()
       , force_fps(0)
       , force_dt(0)
       , capture(0)
       , filter_context(0)
+      , q_ptr{vt}
     {
     }
     ~VideoThreadPrivate() {
@@ -55,6 +56,36 @@ public:
             delete filter_context;
             filter_context = 0;
         }
+    }
+
+    void update_video_info(VideoFrame frame) {
+        statistics->mutex.lock();
+        statistics->totalKeyFrames++;
+        statistics->realResolution = QSize(frame.width(), frame.height());
+        if(statistics->totalKeyFrames==-1)
+        {
+            auto ibs = av_image_get_buffer_size(AVPixelFormat(frame.pixelFormatFFmpeg()),
+                                                frame.width(),
+                                                frame.height(),
+                                                32);
+            if(ibs>0)
+                statistics->imageBufferSize = ibs;
+
+            statistics->totalFrames = 0;
+            statistics->totalKeyFrames = 0;
+            statistics->droppedFrames = 0;
+            statistics->droppedPackets = 0;
+            emit q_ptr->firstKeyFrameReceived();
+        }
+        if(statistics->imageBufferSize==0) {
+            auto ibs = av_image_get_buffer_size(AVPixelFormat(frame.pixelFormatFFmpeg()),
+                                                frame.width(),
+                                                frame.height(),
+                                                32);
+            if(ibs>0)
+                statistics->imageBufferSize = ibs;
+        }
+        statistics->mutex.unlock();
     }
 
     VideoFrameConverter conv;
@@ -66,10 +97,12 @@ public:
     VideoCapture *capture;
     VideoFilterContext *filter_context;//TODO: use own smart ptr. QSharedPointer "=" is ugly
     VideoFrame displayed_frame;
+    bool realtimeDecode = false;
+    VideoThread* q_ptr;
 };
 
 VideoThread::VideoThread(QObject *parent) :
-    AVThread(*new VideoThreadPrivate(), parent)
+    AVThread(*new VideoThreadPrivate(this), parent)
 {
     player = qobject_cast<AVPlayer*>(parent);
     connect(this,&VideoThread::firstKeyFrameReceived,player,&AVPlayer::firstKeyFrameReceived);
@@ -187,6 +220,12 @@ void VideoThread::setEQ(int b, int c, int s)
         task->run();
         delete task;
     }
+}
+
+void VideoThread::setRealtimeDecode(bool val)
+{
+    DPTR_D(VideoThread);
+    d.realtimeDecode = val;
 }
 
 void VideoThread::applyFilters(VideoFrame &frame)
@@ -372,6 +411,45 @@ void VideoThread::run()
             sync_audio = false;
             sync_video = false;
         }
+
+        if(!sync_audio && d.realtimeDecode) {
+            if (!dec->decode(pkt)) {
+                if (pkt.isEOF()) {
+                    Q_EMIT eofDecoded();
+                    if (!pkt.position)
+                        break;
+                }
+                pkt = Packet();
+                continue;
+            }
+            if(pkt.hasKeyFrame)
+                d.update_video_info(dec->frame());
+            if (!pkt.isEOF())
+                pkt.skip(pkt.data.size() - dec->undecodedSize());
+            VideoFrame frame = dec->frame();
+
+            d.statistics->mutex.lock();
+            d.statistics->totalFrames++;
+            d.statistics->mutex.unlock();
+            if (!frame.isValid()) {
+                d.statistics->mutex.lock();
+                d.statistics->droppedFrames++;
+                d.statistics->mutex.unlock();
+                qWarning("invalid video frame from decoder. undecoded data size: %d", pkt.data.size());
+                if (pkt_data == pkt.data.constData()) //FIXME: for libav9. what about other versions?
+                    pkt = Packet();
+                else
+                    pkt_data = pkt.data.constData();
+                continue;
+            }
+
+            applyFilters(frame);
+            if(!deliverVideoFrame(frame))
+                continue;
+            d.displayed_frame = frame;
+            continue;
+        }
+
         const qreal dts = pkt.dts; //FIXME: pts and dts
         // TODO: delta ref time
         // if dts is invalid, diff can be very small (<0) and video will be decoded and rendered(display_wait is disabled for now) immediately
@@ -526,35 +604,7 @@ void VideoThread::run()
         }
 
         if(pkt.hasKeyFrame)
-        {
-            d.statistics->mutex.lock();
-            d.statistics->totalKeyFrames++;
-            d.statistics->realResolution = QSize(dec->frame().width(), dec->frame().height());
-            if(d.statistics->totalKeyFrames==-1)
-            {
-                auto ibs = av_image_get_buffer_size(AVPixelFormat(dec->frame().pixelFormatFFmpeg()),
-                                                                       dec->frame().width(),
-                                                                       dec->frame().height(),
-                                                                       32);
-                if(ibs>0)
-                    d.statistics->imageBufferSize = ibs;
-
-                d.statistics->totalFrames = 0;
-                d.statistics->totalKeyFrames = 0;
-                d.statistics->droppedFrames = 0;
-                d.statistics->droppedPackets = 0;
-                emit firstKeyFrameReceived();
-            }
-            if(d.statistics->imageBufferSize==0) {
-                auto ibs = av_image_get_buffer_size(AVPixelFormat(dec->frame().pixelFormatFFmpeg()),
-                                                                       dec->frame().width(),
-                                                                       dec->frame().height(),
-                                                                       32);
-                if(ibs>0)
-                    d.statistics->imageBufferSize = ibs;
-            }
-            d.statistics->mutex.unlock();
-        }
+            d.update_video_info(dec->frame());
 
         // reduce here to ensure to decode the rest data in the next loop
         if (!pkt.isEOF())

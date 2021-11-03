@@ -520,6 +520,19 @@ void QmlAVPlayer::setFrameRate(qreal value)
     }
 }
 
+bool QmlAVPlayer::realtimeDecode() const
+{
+    return mpPlayer->realtimeDecode();
+}
+
+void QmlAVPlayer::setRealtimeDecode(bool value)
+{
+    if(mpPlayer) {
+        mpPlayer->setRealtimeDecode(value);
+        Q_EMIT realtimeDecodeChanged();
+    }
+}
+
 QVariantMap QmlAVPlayer::mediaData() const
 {
     return mpPlayer->mediaData();
