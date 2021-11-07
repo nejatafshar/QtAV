@@ -322,6 +322,74 @@ void VideoThread::run()
     int sync_id = 0;
     while (!d.stop) {
         processNextTask();
+
+        if(d.statistics->resetValues.load(std::memory_order_relaxed)) {
+            d.statistics->mutex.lock();
+            d.statistics->totalFrames = 0;
+            d.statistics->droppedFrames = 0;
+            d.statistics->droppedPackets = 0;
+            d.statistics->totalKeyFrames = -3;
+            d.statistics->mutex.unlock();
+            d.statistics->resetValues.store(false);
+        }
+
+        if(d.clock->clockType() != AVClock::AudioClock && d.realtimeDecode) {
+            if(!pkt.isValid() && !pkt.isEOF()) { // can't seek back if eof packet is read
+                pkt = d.packets.take(); //wait to dequeue
+               // TODO: push pts history here and reorder
+            }
+            if (!pkt.isValid()) {
+                d.statistics->mutex.lock();
+                d.statistics->droppedPackets++;
+                d.statistics->mutex.unlock();
+                continue;
+            }
+            if (!dec->decode(pkt)) {
+                if (pkt.isEOF()) {
+                    Q_EMIT eofDecoded();
+                    if (!pkt.position)
+                        break;
+                }
+                pkt = Packet();
+                continue;
+            }
+            if(pkt.hasKeyFrame)
+                d.update_video_info(dec->frame());
+            if (!pkt.isEOF())
+                pkt.skip(pkt.data.size() - dec->undecodedSize());
+            VideoFrame frame = dec->frame();
+
+            d.statistics->mutex.lock();
+            d.statistics->totalFrames++;
+            d.statistics->mutex.unlock();
+            if (!frame.isValid()) {
+                d.statistics->mutex.lock();
+                d.statistics->droppedFrames++;
+                d.statistics->mutex.unlock();
+                qWarning("invalid video frame from decoder. undecoded data size: %d", pkt.data.size());
+                if (pkt_data == pkt.data.constData()) //FIXME: for libav9. what about other versions?
+                    pkt = Packet();
+                else
+                    pkt_data = pkt.data.constData();
+                continue;
+            }
+            pkt_data = pkt.data.constData();
+            if (frame.timestamp() < 0)
+                frame.setTimestamp(pkt.pts); // pkt.pts is wrong. >= real timestamp
+
+            applyFilters(frame);
+            //while can pause, processNextTask, not call outset.puase which is deperecated
+            while (d.outputSet->canPauseThread()) {
+                d.outputSet->pauseThread(100);
+                //tryPause(100);
+                processNextTask();
+            }
+            if(!deliverVideoFrame(frame))
+                continue;
+            d.displayed_frame = frame;
+            continue;
+        }
+
         //TODO: why put it at the end of loop then stepForward() not work?
         //processNextTask tryPause(timeout) and  and continue outter loop
         if (d.render_pts0 < 0) { // no pause when seeking
@@ -353,15 +421,6 @@ void VideoThread::run()
         if(!pkt.isValid() && !pkt.isEOF()) { // can't seek back if eof packet is read
             pkt = d.packets.take(); //wait to dequeue
            // TODO: push pts history here and reorder
-        }
-        if(d.statistics->resetValues.load()) {
-            d.statistics->mutex.lock();
-            d.statistics->totalFrames = 0;
-            d.statistics->droppedFrames = 0;
-            d.statistics->droppedPackets = 0;
-            d.statistics->totalKeyFrames = -3;
-            d.statistics->mutex.unlock();
-            d.statistics->resetValues.store(false);
         }
         if (pkt.isEOF()) {
             wait_key_frame = false;
@@ -410,44 +469,6 @@ void VideoThread::run()
         } else {
             sync_audio = false;
             sync_video = false;
-        }
-
-        if(!sync_audio && d.realtimeDecode) {
-            if (!dec->decode(pkt)) {
-                if (pkt.isEOF()) {
-                    Q_EMIT eofDecoded();
-                    if (!pkt.position)
-                        break;
-                }
-                pkt = Packet();
-                continue;
-            }
-            if(pkt.hasKeyFrame)
-                d.update_video_info(dec->frame());
-            if (!pkt.isEOF())
-                pkt.skip(pkt.data.size() - dec->undecodedSize());
-            VideoFrame frame = dec->frame();
-
-            d.statistics->mutex.lock();
-            d.statistics->totalFrames++;
-            d.statistics->mutex.unlock();
-            if (!frame.isValid()) {
-                d.statistics->mutex.lock();
-                d.statistics->droppedFrames++;
-                d.statistics->mutex.unlock();
-                qWarning("invalid video frame from decoder. undecoded data size: %d", pkt.data.size());
-                if (pkt_data == pkt.data.constData()) //FIXME: for libav9. what about other versions?
-                    pkt = Packet();
-                else
-                    pkt_data = pkt.data.constData();
-                continue;
-            }
-
-            applyFilters(frame);
-            if(!deliverVideoFrame(frame))
-                continue;
-            d.displayed_frame = frame;
-            continue;
         }
 
         const qreal dts = pkt.dts; //FIXME: pts and dts
