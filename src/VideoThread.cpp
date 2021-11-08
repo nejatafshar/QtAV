@@ -345,11 +345,6 @@ void VideoThread::run()
                 continue;
             }
             if (!dec->decode(pkt)) {
-                if (pkt.isEOF()) {
-                    Q_EMIT eofDecoded();
-                    if (!pkt.position)
-                        break;
-                }
                 pkt = Packet();
                 continue;
             }
@@ -374,8 +369,6 @@ void VideoThread::run()
                 continue;
             }
             pkt_data = pkt.data.constData();
-            if (frame.timestamp() < 0)
-                frame.setTimestamp(pkt.pts); // pkt.pts is wrong. >= real timestamp
 
             applyFilters(frame);
             //while can pause, processNextTask, not call outset.puase which is deperecated
