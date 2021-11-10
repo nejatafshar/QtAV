@@ -344,6 +344,14 @@ void VideoThread::run()
                 d.statistics->mutex.unlock();
                 continue;
             }
+            const qreal dts = pkt.dts; //FIXME: pts and dts
+            qreal diff = dts > 0 ? dts - d.clock->value() : 0;
+            if (diff < 0)
+                diff = 0; // this ensures no frame drop
+            d.clock->updateVideoTime(dts); // FIXME: dts or pts?
+            if (diff > 0)
+                QThread::msleep(40);
+
             if (!dec->decode(pkt)) {
                 pkt = Packet();
                 continue;
