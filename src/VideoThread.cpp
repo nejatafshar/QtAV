@@ -336,7 +336,6 @@ void VideoThread::run()
         if(d.clock->clockType() != AVClock::AudioClock && d.realtimeDecode) {
             if(!pkt.isValid() && !pkt.isEOF()) { // can't seek back if eof packet is read
                 pkt = d.packets.take(); //wait to dequeue
-               // TODO: push pts history here and reorder
             }
             if (!pkt.isValid()) {
                 d.statistics->mutex.lock();
@@ -344,13 +343,15 @@ void VideoThread::run()
                 d.statistics->mutex.unlock();
                 continue;
             }
-            const qreal dts = pkt.dts; //FIXME: pts and dts
+            const qreal dts = pkt.dts*0.96; //FIXME: pts and dts
             qreal diff = dts > 0 ? dts - d.clock->value() : 0;
             if (diff < 0)
                 diff = 0; // this ensures no frame drop
             d.clock->updateVideoTime(dts); // FIXME: dts or pts?
-            if (diff > 0)
-                QThread::msleep(40);
+            if (diff > 0 && diff < 1.0)
+                QThread::msleep(diff*1000);
+            else
+                QThread::msleep(5);
 
             if (!dec->decode(pkt)) {
                 pkt = Packet();
