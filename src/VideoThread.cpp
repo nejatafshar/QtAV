@@ -350,8 +350,6 @@ void VideoThread::run()
             d.clock->updateVideoTime(dts); // FIXME: dts or pts?
             if (diff > 0 && diff < 1.0)
                 QThread::msleep(diff*1000);
-            else
-                QThread::msleep(5);
 
             if (!dec->decode(pkt)) {
                 pkt = Packet();
