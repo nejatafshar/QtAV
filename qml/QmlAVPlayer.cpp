@@ -155,13 +155,13 @@ void QmlAVPlayer::setSource(const QUrl &url)
 {
     QUrl src;
     if (const auto& s = status();
-        s == Loading || s == Loaded || s == Stalled) {
+        s == Loading || s == Loaded || s == Stalled || s == Buffering) {
         m_lastSource = url;
         if (!m_setSourceTimer.isActive()) {
             m_setSourceTryCount = 0;
             m_setSourceTimer.start();
         }
-        if ((m_setSourceTryCount>50 && s == Stalled))
+        if ((m_setSourceTryCount>200 && (s == Buffering || s == Stalled)))
             src = "";
         else
             return;
