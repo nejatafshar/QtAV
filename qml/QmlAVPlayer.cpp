@@ -98,7 +98,7 @@ void QmlAVPlayer::classBegin()
 
     m_metaData.reset(new MediaMetaData());
 
-    m_setSourceTimer.setInterval(100);
+    m_setSourceTimer.setInterval(300);
     connect(&m_setSourceTimer,&QTimer::timeout, this, [this] () {
        ++m_setSourceTryCount;
        setSource(m_lastSource);
@@ -161,7 +161,7 @@ void QmlAVPlayer::setSource(const QUrl &url)
             m_setSourceTryCount = 0;
             m_setSourceTimer.start();
         }
-        if ((m_setSourceTryCount>200 && (s == Buffering || s == Stalled)))
+        if ((m_setSourceTryCount>30 && (s == Buffering || s == Stalled)))
             src = "";
         else
             return;
