@@ -320,6 +320,7 @@ void VideoThread::run()
     const char* pkt_data = NULL; // workaround for libav9 decode fail but error code >= 0
     qint64 last_deliver_time = 0;
     int sync_id = 0;
+    qreal last_dts = 0;
     while (!d.stop) {
         processNextTask();
 
@@ -343,11 +344,11 @@ void VideoThread::run()
                 d.statistics->mutex.unlock();
                 continue;
             }
-            const qreal dts = pkt.dts*0.96; //FIXME: pts and dts
-            qreal diff = dts > 0 ? dts - d.clock->value() : 0;
+            const qreal dts = pkt.dts * 0.95; //FIXME: pts and dts
+            qreal diff = dts > 0 ? dts - last_dts : 0;
             if (diff < 0)
                 diff = 0; // this ensures no frame drop
-            d.clock->updateVideoTime(dts); // FIXME: dts or pts?
+            last_dts = dts;
             if (diff > 0 && diff < 1.0)
                 QThread::msleep(diff*1000);
 
