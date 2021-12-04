@@ -1043,7 +1043,7 @@ bool AVDemuxer::load()
     //alloc av format context
     if (!d->format_ctx)
         d->format_ctx = avformat_alloc_context();
-    d->format_ctx->flags = AVFMT_FLAG_GENPTS | AVFMT_FLAG_FLUSH_PACKETS;
+    d->format_ctx->flags |= AVFMT_FLAG_GENPTS | AVFMT_FLAG_FLUSH_PACKETS;
     //install interrupt callback
     d->format_ctx->interrupt_callback = *d->interrupt_hanlder;
 

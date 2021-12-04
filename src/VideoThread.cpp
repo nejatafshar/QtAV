@@ -58,7 +58,7 @@ public:
         }
     }
 
-    void update_video_info(VideoFrame frame) {
+    inline void update_video_info(VideoFrame frame) {
         statistics->mutex.lock();
         statistics->totalKeyFrames++;
         statistics->realResolution = QSize(frame.width(), frame.height());
@@ -321,6 +321,8 @@ void VideoThread::run()
     qint64 last_deliver_time = 0;
     int sync_id = 0;
     qreal last_dts = 0;
+    QElapsedTimer elapsedTimer;
+    elapsedTimer.start();
     while (!d.stop) {
         processNextTask();
 
@@ -336,7 +338,10 @@ void VideoThread::run()
 
         if(d.clock->clockType() != AVClock::AudioClock && d.realtimeDecode) {
             if(!pkt.isValid() && !pkt.isEOF()) { // can't seek back if eof packet is read
-                pkt = d.packets.take(); //wait to dequeue
+                bool isValid{false};
+                pkt = d.packets.take(5, &isValid);
+                if(!isValid)
+                    continue;
             }
             if (!pkt.isValid()) {
                 d.statistics->mutex.lock();
@@ -344,13 +349,16 @@ void VideoThread::run()
                 d.statistics->mutex.unlock();
                 continue;
             }
-            const qreal dts = pkt.dts * 0.95; //FIXME: pts and dts
+            const qreal dts = pkt.dts; //FIXME: pts and dts
             qreal diff = dts > 0 ? dts - last_dts : 0;
             if (diff < 0)
                 diff = 0; // this ensures no frame drop
+            if (diff > 0 && diff < 1.0 && elapsedTimer.elapsed()<(diff*1000) && d.packets.buffered()<2) {
+                QThread::msleep(5);
+                continue;
+            }
+            elapsedTimer.start();
             last_dts = dts;
-            if (diff > 0 && diff < 1.0)
-                QThread::msleep(diff*1000);
 
             if (!dec->decode(pkt)) {
                 pkt = Packet();
@@ -379,15 +387,10 @@ void VideoThread::run()
             pkt_data = pkt.data.constData();
 
             applyFilters(frame);
-            //while can pause, processNextTask, not call outset.puase which is deperecated
-            while (d.outputSet->canPauseThread()) {
-                d.outputSet->pauseThread(100);
-                //tryPause(100);
-                processNextTask();
-            }
             if(!deliverVideoFrame(frame))
                 continue;
             d.displayed_frame = frame;
+            QThread::msleep(diff*800);
             continue;
         }
 
