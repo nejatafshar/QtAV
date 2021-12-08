@@ -321,8 +321,6 @@ void VideoThread::run()
     qint64 last_deliver_time = 0;
     int sync_id = 0;
     qreal last_dts = 0;
-    QElapsedTimer elapsedTimer;
-    elapsedTimer.start();
     while (!d.stop) {
         processNextTask();
 
@@ -340,7 +338,7 @@ void VideoThread::run()
             if(!pkt.isValid() && !pkt.isEOF()) { // can't seek back if eof packet is read
                 bool isValid{false};
                 pkt = d.packets.take(5, &isValid);
-                if(!isValid)
+                if(!isValid && d.packets.isEmpty())
                     continue;
             }
             if (!pkt.isValid()) {
@@ -350,14 +348,7 @@ void VideoThread::run()
                 continue;
             }
             const qreal dts = pkt.dts; //FIXME: pts and dts
-            qreal diff = dts > 0 ? dts - last_dts : 0;
-            if (diff < 0)
-                diff = 0; // this ensures no frame drop
-            if (diff > 0 && diff < 1.0 && elapsedTimer.elapsed()<(diff*1000) && d.packets.buffered()<2) {
-                QThread::msleep(5);
-                continue;
-            }
-            elapsedTimer.start();
+            qreal diff = dts > 0 ? qMin(qMax(dts - last_dts, 0.0), 1.0) : 0;
             last_dts = dts;
 
             if (!dec->decode(pkt)) {
@@ -390,7 +381,7 @@ void VideoThread::run()
             if(!deliverVideoFrame(frame))
                 continue;
             d.displayed_frame = frame;
-            QThread::msleep(diff*800);
+            QThread::msleep((pkt.duration>0 ? pkt.duration : diff ) *(1000-d.packets.buffered()*20));
             continue;
         }
 
