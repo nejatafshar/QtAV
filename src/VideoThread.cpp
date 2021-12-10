@@ -338,7 +338,7 @@ void VideoThread::run()
             if(!pkt.isValid() && !pkt.isEOF()) { // can't seek back if eof packet is read
                 bool isValid{false};
                 pkt = d.packets.take(5, &isValid);
-                if(!isValid && d.packets.isEmpty())
+                if(!isValid)
                     continue;
             }
             if (!pkt.isValid()) {
@@ -381,7 +381,8 @@ void VideoThread::run()
             if(!deliverVideoFrame(frame))
                 continue;
             d.displayed_frame = frame;
-            QThread::msleep((pkt.duration>0 ? pkt.duration : diff ) *(1000-d.packets.buffered()*20));
+            if(d.packets.buffered()>0)
+                QThread::msleep((pkt.duration>0 ? pkt.duration : diff ) *(1000-d.packets.buffered()*30));
             continue;
         }
 
