@@ -381,8 +381,9 @@ void VideoThread::run()
             if(!deliverVideoFrame(frame))
                 continue;
             d.displayed_frame = frame;
-            if(d.packets.buffered()>0)
-                QThread::msleep((pkt.duration>0 ? pkt.duration : diff ) *(1000-d.packets.buffered()*30));
+            auto duration = diff>0 ? diff : pkt.duration;
+            int wait = std::floor(duration*(1000-d.packets.buffered()*20));
+            QThread::msleep(qMin(qMax(wait,0), 1000));
             continue;
         }
 
