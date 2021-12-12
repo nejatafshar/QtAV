@@ -75,7 +75,7 @@ bool AVDecoder::open()
         qWarning("FFmpeg codec context not ready");
         return false;
     }
-    d.codec_ctx->thread_count = 1;
+//    d.codec_ctx->thread_count = 1;
     const QString hwa = property("hwaccel").toString();
     AVCodec* codec = get_codec(codecName(), hwa, d.codec_ctx->codec_id);
     if (!codec) { // TODO: can be null for none-ffmpeg based decoders
