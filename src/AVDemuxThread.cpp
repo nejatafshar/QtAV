@@ -773,6 +773,7 @@ void AVDemuxThread::run()
                 vqueue->blockFull(!audio_thread || !audio_thread->isRunning() || !aqueue || aqueue->isEnough());
                 vqueue->put(pkt); //affect audio_thread
                 last_vpts = pkt.pts;
+                QThread::msleep((1000/demuxer->frameRate())*0.7);
             }
         } else if (demuxer->subtitleStreams().contains(stream)) { //subtitle
             Q_EMIT internalSubtitlePacketRead(demuxer->subtitleStreams().indexOf(stream), pkt);

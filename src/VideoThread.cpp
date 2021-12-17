@@ -335,8 +335,12 @@ void VideoThread::run()
         }
 
         if(d.clock->clockType() != AVClock::AudioClock && d.realtimeDecode) {
-            if(!pkt.isValid() && !pkt.isEOF()) // can't seek back if eof packet is read
-                pkt = d.packets.take();
+            if(!pkt.isValid() && !pkt.isEOF()) {
+                bool isValid{false};
+                pkt = d.packets.take(5, &isValid);
+                if(!isValid)
+                    continue;
+            }
             if (!pkt.isValid()) {
                 d.statistics->mutex.lock();
                 d.statistics->droppedPackets++;
@@ -347,7 +351,7 @@ void VideoThread::run()
             qreal diff = dts > 0 ? qMin(qMax(dts - last_dts, 0.0), 1.0) : 0;
             last_dts = dts;
             auto duration = diff>0 ? diff : pkt.duration;
-            int wait = std::floor(duration*(1000-d.packets.buffered()*20));
+            int wait = std::floor(duration*(1000+(2-d.packets.buffered())*30));
             QThread::msleep(qMin(qMax(wait,0), 1000));
 
             if (!dec->decode(pkt)) {
