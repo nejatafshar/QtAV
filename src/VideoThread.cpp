@@ -345,8 +345,18 @@ void VideoThread::run()
                 d.statistics->mutex.lock();
                 d.statistics->droppedPackets++;
                 d.statistics->mutex.unlock();
+                wait_key_frame = true;
                 continue;
             }
+
+            if (wait_key_frame) {
+                if (!pkt.hasKeyFrame) {
+                    pkt = Packet();
+                    continue;
+                }
+                wait_key_frame = false;
+            }
+
             const qreal dts = pkt.dts; //FIXME: pts and dts
             qreal diff = dts > 0 ? qMin(qMax(dts - last_dts, 0.0), 1.0) : 0;
             last_dts = dts;
