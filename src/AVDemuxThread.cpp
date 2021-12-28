@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
     QtAV:  Multimedia framework based on Qt and FFmpeg
     Copyright (C) 2012-2017 Wang Bin <wbsecg1@gmail.com>
 
@@ -634,7 +634,8 @@ void AVDemuxThread::run()
 
     AutoSem as(&sem);
     Q_UNUSED(as);
-    int waitInterval = (1000/demuxer->frameRate())*0.7;
+    int waitInterval = (1000/demuxer->frameRate())*0.8;
+    qint64 count = 0;
     while (!end) {
         processNextSeekTask();
         //vthread maybe changed by AVPlayer.setPriority() from no dec case
@@ -774,7 +775,7 @@ void AVDemuxThread::run()
                 vqueue->blockFull(!audio_thread || !audio_thread->isRunning() || !aqueue || aqueue->isEnough());
                 vqueue->put(pkt); //affect audio_thread
                 last_vpts = pkt.pts;
-                if(realtimeDecode)
+                if(realtimeDecode && ++count>100)
                     QThread::msleep(waitInterval);
             }
         } else if (demuxer->subtitleStreams().contains(stream)) { //subtitle
