@@ -229,6 +229,7 @@ void AVPlayer::Private::applyFrameRate()
 void AVPlayer::Private::applyRealtimeDecode()
 {
     vthread->setRealtimeDecode(realtimeDecode);
+    read_thread->realtimeDecode = realtimeDecode;
 }
 
 void AVPlayer::Private::initStatistics()
