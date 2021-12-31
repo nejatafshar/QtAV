@@ -634,8 +634,10 @@ void AVDemuxThread::run()
 
     AutoSem as(&sem);
     Q_UNUSED(as);
-    int waitInterval = (1000/demuxer->frameRate())*0.8;
+    QElapsedTimer elapsed;
     qint64 count = 0;
+    int waitTime = 0;
+    elapsed.start();
     while (!end) {
         processNextSeekTask();
         //vthread maybe changed by AVPlayer.setPriority() from no dec case
@@ -775,8 +777,15 @@ void AVDemuxThread::run()
                 vqueue->blockFull(!audio_thread || !audio_thread->isRunning() || !aqueue || aqueue->isEnough());
                 vqueue->put(pkt); //affect audio_thread
                 last_vpts = pkt.pts;
-                if(realtimeDecode && ++count>100)
-                    QThread::msleep(waitInterval);
+                if(realtimeDecode) {
+                    if(waitTime>0)
+                        QThread::msleep(waitTime);
+                    if(++count>100) {
+                        waitTime = 800/(count*1000/elapsed.elapsed()); // (1000/fps)*0.8
+                        count = 0;
+                        elapsed.start();
+                    }
+                }
             }
         } else if (demuxer->subtitleStreams().contains(stream)) { //subtitle
             Q_EMIT internalSubtitlePacketRead(demuxer->subtitleStreams().indexOf(stream), pkt);
