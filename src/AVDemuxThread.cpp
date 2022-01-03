@@ -778,10 +778,10 @@ void AVDemuxThread::run()
                 vqueue->put(pkt); //affect audio_thread
                 last_vpts = pkt.pts;
                 if(realtimeDecode) {
-                    if(waitTime>0)
+                    if(waitTime>0 && count%4 != 0)
                         QThread::msleep(waitTime);
                     if(++count>100) {
-                        waitTime = 800/(count*1000/elapsed.elapsed()); // (1000/fps)*0.8
+                        waitTime = 1000/(count*1000/elapsed.elapsed()); // 1000/fps
                         count = 0;
                         elapsed.start();
                     }
