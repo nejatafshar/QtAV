@@ -88,6 +88,7 @@ public:
      * \return true if no error. false if error occurs, eof reaches, interrupted by user or time out(getInterruptTimeout())
      */
     bool readFrame(); // TODO: rename int readPacket(), return stream number
+    qreal buffered() const;
     /*!
      * \brief packet
      * return the packet read by demuxer. packet is invalid if readFrame() returns false.

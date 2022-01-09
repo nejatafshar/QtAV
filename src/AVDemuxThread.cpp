@@ -631,14 +631,41 @@ void AVDemuxThread::run()
     }
     qreal last_apts = 0;
     qreal last_vpts = 0;
+    qreal last_dts = 0;
 
     AutoSem as(&sem);
     Q_UNUSED(as);
     QElapsedTimer elapsed;
     qint64 count = 0;
-    int waitTime = 0;
-    elapsed.start();
+    if(realtimeDecode) {
+        elapsed.start();
+        Q_EMIT mediaStatusChanged(QtAV::BufferedMedia);
+        Q_EMIT bufferProgressChanged(1);
+    }
     while (!end) {
+
+        if(realtimeDecode) {
+            if (!demuxer->readFrame()) {
+                continue;
+            }
+            pkt = demuxer->packet();
+            ++count;
+            qreal diff = pkt.dts > 0 ? qMin(qMax(pkt.dts - last_dts, 0.0), 1.0) : 0;
+            last_dts = pkt.dts;
+            auto duration = diff>0 ? diff : pkt.duration;
+            auto unit = 600;
+            if(count>100)
+                unit = 950-60*demuxer->buffered();
+            else if(count<50)
+                unit = 0;
+            int wait = std::floor(duration*unit-elapsed.elapsed());
+            QThread::msleep(qMin(qMax(wait,0), 1000));
+            elapsed.start();
+            if(video_thread)
+                static_cast<VideoThread*>(video_thread)->decodePacket(pkt);
+            continue;
+        }
+
         processNextSeekTask();
         //vthread maybe changed by AVPlayer.setPriority() from no dec case
         vqueue = video_thread ? video_thread->packetQueue() : 0;
@@ -777,15 +804,6 @@ void AVDemuxThread::run()
                 vqueue->blockFull(!audio_thread || !audio_thread->isRunning() || !aqueue || aqueue->isEnough());
                 vqueue->put(pkt); //affect audio_thread
                 last_vpts = pkt.pts;
-                if(realtimeDecode) {
-                    if(waitTime>0 && count%4 != 0)
-                        QThread::msleep(waitTime);
-                    if(++count>100) {
-                        waitTime = 1000/(count*1000/elapsed.elapsed()); // 1000/fps
-                        count = 0;
-                        elapsed.start();
-                    }
-                }
             }
         } else if (demuxer->subtitleStreams().contains(stream)) { //subtitle
             Q_EMIT internalSubtitlePacketRead(demuxer->subtitleStreams().indexOf(stream), pkt);

@@ -318,8 +318,6 @@ qreal AVPlayer::forcedFrameRate() const
 void AVPlayer::setRealtimeDecode(bool value)
 {
     d->realtimeDecode = value;
-    if (!isPlaying())
-        return;
     d->applyRealtimeDecode();
 }
 

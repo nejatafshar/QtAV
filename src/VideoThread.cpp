@@ -98,6 +98,7 @@ public:
     VideoFilterContext *filter_context;//TODO: use own smart ptr. QSharedPointer "=" is ugly
     VideoFrame displayed_frame;
     bool realtimeDecode = false;
+    bool wait_key_frame = false;
     VideoThread* q_ptr;
 };
 
@@ -228,6 +229,49 @@ void VideoThread::setRealtimeDecode(bool val)
     d.realtimeDecode = val;
 }
 
+void VideoThread::decodePacket(Packet &pkt)
+{
+    DPTR_D(VideoThread);
+    if (!pkt.isValid()) {
+        d.statistics->mutex.lock();
+        d.statistics->droppedPackets++;
+        d.statistics->mutex.unlock();
+        d.wait_key_frame = true;
+        return;
+    }
+
+    if (d.wait_key_frame) {
+        if (!pkt.hasKeyFrame)
+            return;
+        d.wait_key_frame = false;
+    }
+
+    VideoDecoder *dec = static_cast<VideoDecoder*>(d.dec);
+    if (!dec->decode(pkt))
+        return;
+    if(pkt.hasKeyFrame)
+        d.update_video_info(dec->frame());
+    if (!pkt.isEOF())
+        pkt.skip(pkt.data.size() - dec->undecodedSize());
+    VideoFrame frame = dec->frame();
+
+    d.statistics->mutex.lock();
+    d.statistics->totalFrames++;
+    d.statistics->mutex.unlock();
+    if (!frame.isValid()) {
+        d.statistics->mutex.lock();
+        d.statistics->droppedFrames++;
+        d.statistics->mutex.unlock();
+        qWarning("invalid video frame from decoder. undecoded data size: %d", pkt.data.size());
+        return;
+    }
+
+    applyFilters(frame);
+    if(!deliverVideoFrame(frame))
+        return;
+    d.displayed_frame = frame;
+}
+
 void VideoThread::applyFilters(VideoFrame &frame)
 {
     DPTR_D(VideoThread);
@@ -320,7 +364,6 @@ void VideoThread::run()
     const char* pkt_data = NULL; // workaround for libav9 decode fail but error code >= 0
     qint64 last_deliver_time = 0;
     int sync_id = 0;
-    qreal last_dts = 0;
     while (!d.stop) {
         processNextTask();
 
@@ -335,65 +378,7 @@ void VideoThread::run()
         }
 
         if(d.clock->clockType() != AVClock::AudioClock && d.realtimeDecode) {
-            if(!pkt.isValid() && !pkt.isEOF()) {
-                bool isValid{false};
-                pkt = d.packets.take(5, &isValid);
-                if(!isValid)
-                    continue;
-            }
-            if (!pkt.isValid()) {
-                d.statistics->mutex.lock();
-                d.statistics->droppedPackets++;
-                d.statistics->mutex.unlock();
-                wait_key_frame = true;
-                continue;
-            }
-
-            if (wait_key_frame) {
-                if (!pkt.hasKeyFrame) {
-                    pkt = Packet();
-                    continue;
-                }
-                wait_key_frame = false;
-            }
-
-            const qreal dts = pkt.dts; //FIXME: pts and dts
-            qreal diff = dts > 0 ? qMin(qMax(dts - last_dts, 0.0), 1.0) : 0;
-            last_dts = dts;
-            auto duration = diff>0 ? diff : pkt.duration;
-            int wait = std::floor(duration*(1000+(2-d.packets.buffered())*30));
-            QThread::msleep(qMin(qMax(wait,0), 1000));
-
-            if (!dec->decode(pkt)) {
-                pkt = Packet();
-                continue;
-            }
-            if(pkt.hasKeyFrame)
-                d.update_video_info(dec->frame());
-            if (!pkt.isEOF())
-                pkt.skip(pkt.data.size() - dec->undecodedSize());
-            VideoFrame frame = dec->frame();
-
-            d.statistics->mutex.lock();
-            d.statistics->totalFrames++;
-            d.statistics->mutex.unlock();
-            if (!frame.isValid()) {
-                d.statistics->mutex.lock();
-                d.statistics->droppedFrames++;
-                d.statistics->mutex.unlock();
-                qWarning("invalid video frame from decoder. undecoded data size: %d", pkt.data.size());
-                if (pkt_data == pkt.data.constData()) //FIXME: for libav9. what about other versions?
-                    pkt = Packet();
-                else
-                    pkt_data = pkt.data.constData();
-                continue;
-            }
-            pkt_data = pkt.data.constData();
-
-            applyFilters(frame);
-            if(!deliverVideoFrame(frame))
-                continue;
-            d.displayed_frame = frame;
+            QThread::msleep(50);
             continue;
         }
 

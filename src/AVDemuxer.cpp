@@ -764,6 +764,12 @@ bool AVDemuxer::readFrame()
     return true;
 }
 
+qreal AVDemuxer::buffered() const
+{
+    auto & pb = d->format_ctx->pb;
+    return static_cast<double>(pb->buf_end - pb->buffer)/pb->buffer_size;
+}
+
 Packet AVDemuxer::packet() const
 {
     return d->pkt;
@@ -1043,7 +1049,7 @@ bool AVDemuxer::load()
     //alloc av format context
     if (!d->format_ctx)
         d->format_ctx = avformat_alloc_context();
-    d->format_ctx->flags |= AVFMT_FLAG_GENPTS;
+    d->format_ctx->flags |= AVFMT_FLAG_GENPTS  | AVFMT_FLAG_FLUSH_PACKETS;
     //install interrupt callback
     d->format_ctx->interrupt_callback = *d->interrupt_hanlder;
 
