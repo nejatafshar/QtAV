@@ -246,6 +246,8 @@ void VideoThread::decodePacket(Packet &pkt)
         d.wait_key_frame = false;
     }
 
+    if(!d.dec)
+        return;
     VideoDecoder *dec = static_cast<VideoDecoder*>(d.dec);
     if (!dec->decode(pkt))
         return;
