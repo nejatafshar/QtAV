@@ -29,6 +29,7 @@
 #include "utils/Logger.h"
 #include <QTimer>
 #include "SPSCQueue.h"
+#include <thread>
 
 #define RESUME_ONCE_ON_SEEK 0
 
