@@ -764,14 +764,6 @@ bool AVDemuxer::readFrame()
     return true;
 }
 
-qreal AVDemuxer::buffered() const
-{
-    if(!d->format_ctx || !d->format_ctx->pb)
-        return 0;
-    auto & pb = d->format_ctx->pb;
-    return static_cast<double>(pb->buf_end - pb->buffer)/pb->buffer_size;
-}
-
 Packet AVDemuxer::packet() const
 {
     return d->pkt;

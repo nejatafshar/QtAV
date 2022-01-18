@@ -28,6 +28,7 @@
 #include <QtCore/QTime>
 #include "utils/Logger.h"
 #include <QTimer>
+#include "SPSCQueue.h"
 
 #define RESUME_ONCE_ON_SEEK 0
 
@@ -635,58 +636,48 @@ void AVDemuxThread::run()
 
     AutoSem as(&sem);
     Q_UNUSED(as);
-    QElapsedTimer elapsed;
-    qint64 count = 0;
+
     if(realtimeDecode) {
-        elapsed.start();
+        rigtorp::SPSCQueue<Packet> packets(20);
         Q_EMIT mediaStatusChanged(QtAV::BufferedMedia);
         Q_EMIT bufferProgressChanged(1);
-    }
-    int bufFullCount = 0;
-    bool flushMode = false;
-    auto fps = demuxer->frameRate();
-    if(fps<=0 || fps>1000 || isnan(fps))
-        fps = 20;
-    while (!end) {
 
-        if(realtimeDecode) {
-            if (!demuxer->readFrame()) {
+        auto fps = demuxer->frameRate();
+        if(fps<=0 || fps>1000 || isnan(fps))
+            fps = 20;
+
+        auto t = std::thread([&] {
+          while (!end) {
+              if (!demuxer->readFrame()) {
+                  QThread::msleep(10);
+                  continue;
+              }
+              while(!end && !packets.try_push(demuxer->packet()))
+                QThread::msleep(1);
+          }
+        });
+
+        while (!end) {
+            while (!end && !packets.front())
+                QThread::msleep(1);
+            if(!packets.front())
                 continue;
-            }
-            auto buffered = demuxer->buffered();
-            if(buffered>0.95)
-                ++bufFullCount;
-            else
-                bufFullCount = std::max(bufFullCount -1, 0);
-            if(bufFullCount>2*fps)
-                flushMode = true;
-            else if(flushMode && bufFullCount<fps*0.5) {
-                bufFullCount = 0;
-                flushMode = false;
-            }
-            if(flushMode) {
-                Packet p;
-                if(video_thread)
-                    static_cast<VideoThread*>(video_thread)->decodePacket(p);
-                continue;
-            }
-            pkt = demuxer->packet();
-            ++count;
-            qreal diff = pkt.dts > 0 ? qMin(qMax(pkt.dts - last_dts, 0.0), 1.0) : 0;
+            pkt = *packets.front();
+            qreal duration = pkt.dts > 0 && (pkt.dts - last_dts)>0 ? pkt.dts - last_dts : pkt.duration;
             last_dts = pkt.dts;
-            auto duration = diff>0 ? diff : pkt.duration;
-            auto unit = 600;
-            if(count>100)
-                unit = 950-60*buffered;
-            else if(count<50)
-                unit = 0;
-            int wait = std::floor(duration*unit-elapsed.elapsed());
-            QThread::msleep(qMin(qMax(wait,0), 1000));
-            elapsed.start();
+            int wait = std::floor(duration*(990-(packets.size()*10)));
+            QThread::msleep(qMin(qMax(wait,0), int(1000/fps)));
             if(video_thread)
                 static_cast<VideoThread*>(video_thread)->decodePacket(pkt);
-            continue;
+            packets.pop();
         }
+
+        t.join();
+    }
+
+    while (!end) {
+        if(realtimeDecode)
+            break;
 
         processNextSeekTask();
         //vthread maybe changed by AVPlayer.setPriority() from no dec case
