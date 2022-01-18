@@ -229,7 +229,7 @@ void VideoThread::setRealtimeDecode(bool val)
     d.realtimeDecode = val;
 }
 
-void VideoThread::decodePacket(Packet &pkt)
+bool VideoThread::decodePacket(Packet &pkt)
 {
     DPTR_D(VideoThread);
     if (!pkt.isValid()) {
@@ -237,20 +237,20 @@ void VideoThread::decodePacket(Packet &pkt)
         d.statistics->droppedPackets++;
         d.statistics->mutex.unlock();
         d.wait_key_frame = true;
-        return;
+        return false;
     }
 
     if (d.wait_key_frame) {
         if (!pkt.hasKeyFrame)
-            return;
+            return false;
         d.wait_key_frame = false;
     }
 
     if(!d.dec)
-        return;
+        return false;
     VideoDecoder *dec = static_cast<VideoDecoder*>(d.dec);
     if (!dec->decode(pkt))
-        return;
+        return false;
     if(pkt.hasKeyFrame)
         d.update_video_info(dec->frame());
     if (!pkt.isEOF())
@@ -265,13 +265,14 @@ void VideoThread::decodePacket(Packet &pkt)
         d.statistics->droppedFrames++;
         d.statistics->mutex.unlock();
         qWarning("invalid video frame from decoder. undecoded data size: %d", pkt.data.size());
-        return;
+        return false;
     }
 
     applyFilters(frame);
     if(!deliverVideoFrame(frame))
-        return;
+        return false;
     d.displayed_frame = frame;
+    return true;
 }
 
 void VideoThread::applyFilters(VideoFrame &frame)

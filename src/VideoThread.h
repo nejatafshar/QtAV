@@ -49,7 +49,7 @@ public:
     void setEQ(int b, int c, int s);
     void setRealtimeDecode(bool val);
 
-    void decodePacket(Packet& pkt);
+    bool decodePacket(Packet& pkt);
 
 public Q_SLOTS:
     void addCaptureTask();

@@ -657,18 +657,36 @@ void AVDemuxThread::run()
           }
         });
 
+        int bufFullCount = 0;
         while (!end) {
             while (!end && !packets.front())
                 QThread::msleep(1);
             if(!packets.front())
                 continue;
+            auto psize = packets.size();
+            if(psize>17)
+                ++bufFullCount;
+            else
+                bufFullCount = 0;
+            if(bufFullCount>10) {
+                while (packets.front())
+                    packets.pop();
+                bufFullCount = 0;
+                Packet p;
+                if(video_thread)
+                    static_cast<VideoThread*>(video_thread)->decodePacket(p);
+                continue;
+            }
             pkt = *packets.front();
-            qreal duration = pkt.dts > 0 && (pkt.dts - last_dts)>0 ? pkt.dts - last_dts : pkt.duration;
-            last_dts = pkt.dts;
-            int wait = std::floor(duration*(990-(packets.size()*10)));
-            QThread::msleep(qMin(qMax(wait,0), int(1000/fps)));
-            if(video_thread)
-                static_cast<VideoThread*>(video_thread)->decodePacket(pkt);
+            if(video_thread) {
+                auto ret = static_cast<VideoThread*>(video_thread)->decodePacket(pkt);
+                if(ret) {
+                    qreal duration = pkt.dts > 0 && (pkt.dts - last_dts)>0 ? pkt.dts - last_dts : pkt.duration;
+                    last_dts = pkt.dts;
+                    int wait = std::floor(duration*(990-psize*10));
+                    QThread::msleep(qMin(qMax(wait,0), int(1100/fps)));
+                }
+            }
             packets.pop();
         }
 
