@@ -684,7 +684,7 @@ void AVDemuxThread::run()
                 if(ret) {
                     qreal duration = pkt.dts > 0 && (pkt.dts - last_dts)>0 ? pkt.dts - last_dts : pkt.duration;
                     last_dts = pkt.dts;
-                    int wait = std::floor(duration*(990-psize*10));
+                    int wait = std::floor(psize<10 ? 990 : duration*(1000-psize*10));
                     QThread::msleep(qMin(qMax(wait,0), int(1100/fps)));
                 }
             }
