@@ -183,6 +183,7 @@ public:
     quint64 lastTotalVideoBandwidth = 0;
     quint64 lastTotalAudioBandwidth = 0;
     qint64 lastTotalFrames = 0;
+    qint64 calc_count = 0;
 
     bool receivingFrames = false;
     int checkReceivingCounter = 0;

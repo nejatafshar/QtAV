@@ -686,6 +686,7 @@ bool AVPlayer::Private::calcRates()
         statistics.mutex.lock();
         lastTotalFrames = statistics.totalFrames;
         statistics.mutex.unlock();
+        calc_count = 0;
         return false;
     }
 
@@ -696,21 +697,28 @@ bool AVPlayer::Private::calcRates()
         return false;
 
 
+    double alpha = calc_count>0 ? 0.333 : 1.0;
     demuxer.mutex.lock();
-    statistics.bandwidthRate = (static_cast<double>(demuxer.totalBandwidth-lastTotalBandwidth)/elapsed)*1000;
+    auto val = (static_cast<double>(demuxer.totalBandwidth-lastTotalBandwidth)/elapsed)*1000;
     lastTotalBandwidth = demuxer.totalBandwidth;
+    statistics.bandwidthRate = (alpha * val) + (1.0 - alpha) * statistics.bandwidthRate;
 
-    statistics.videoBandwidthRate = (static_cast<double>(demuxer.totalVideoBandwidth-lastTotalVideoBandwidth)/elapsed)*1000;
+    val = (static_cast<double>(demuxer.totalVideoBandwidth-lastTotalVideoBandwidth)/elapsed)*1000;
     lastTotalVideoBandwidth = demuxer.totalVideoBandwidth;
+    statistics.videoBandwidthRate = (alpha * val) + (1.0 - alpha) * statistics.videoBandwidthRate;
 
-    statistics.audioBandwidthRate = (static_cast<double>(demuxer.totalAudioBandwidth-lastTotalAudioBandwidth)/elapsed)*1000;
+    val = (static_cast<double>(demuxer.totalAudioBandwidth-lastTotalAudioBandwidth)/elapsed)*1000;
     lastTotalAudioBandwidth = demuxer.totalAudioBandwidth;
+    statistics.audioBandwidthRate = (alpha * val) + (1.0 - alpha) * statistics.audioBandwidthRate;
     demuxer.mutex.unlock();
 
     statistics.mutex.lock();
-    statistics.fps = (static_cast<double>(statistics.totalFrames-lastTotalFrames)/elapsed)*1000;
+    val = (static_cast<double>(statistics.totalFrames-lastTotalFrames)/elapsed)*1000;
     lastTotalFrames = statistics.totalFrames;
+    statistics.fps = (alpha * val) + (1.0 - alpha) * statistics.fps;
     statistics.mutex.unlock();
+
+    ++calc_count;
 
     return true;
 }
