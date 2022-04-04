@@ -1,6 +1,6 @@
 /******************************************************************************
     QtAV:  Multimedia framework based on Qt and FFmpeg
-    Copyright (C) 2012-2016 Wang Bin <wbsecg1@gmail.com>
+    Copyright (C) 2012-2022 Wang Bin <wbsecg1@gmail.com>
 
 *   This file is part of QtAV
 
@@ -222,6 +222,9 @@ void Packet::skip(int bytes)
 #ifndef QT_NO_DEBUG_STREAM
 QDebug operator<<(QDebug dbg, const Packet &pkt)
 {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+    using Qt::hex, Qt::dec;
+#endif
     dbg.nospace() << "QtAV::Packet.data " << hex << (qptrdiff)pkt.data.constData() << "+" << dec << pkt.data.size();
     dbg.nospace() << ", dts: " << pkt.dts;
     dbg.nospace() << ", pts: " << pkt.pts;

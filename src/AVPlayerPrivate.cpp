@@ -1,6 +1,6 @@
 /******************************************************************************
     QtAV:  Multimedia framework based on Qt and FFmpeg
-    Copyright (C) 2012-2017 Wang Bin <wbsecg1@gmail.com>
+    Copyright (C) 2012-2022 Wang Bin <wbsecg1@gmail.com>
 
 *   This file is part of QtAV (from 2014)
 
@@ -28,6 +28,7 @@
 #include "QtAV/MediaIO.h"
 #include "QtAV/VideoCapture.h"
 #include "QtAV/private/AVCompat.h"
+#include <QtCore/QIODevice>
 #if AV_MODULE_CHECK(LIBAVFORMAT, 55, 18, 0, 39, 100)
 extern "C" {
 #include <libavutil/display.h>
@@ -256,7 +257,7 @@ void AVPlayer::Private::initBaseStatistics()
         return;
     }
     statistics.bit_rate = fmt_ctx->bit_rate;
-    statistics.format = QString().sprintf("%s - %s", fmt_ctx->iformat->name, fmt_ctx->iformat->long_name);
+    statistics.format = QString().asprintf("%s - %s", fmt_ctx->iformat->name, fmt_ctx->iformat->long_name);
     //AV_TIME_BASE_Q: msvc error C2143
     //fmt_ctx->duration may be AV_NOPTS_VALUE. AVDemuxer.duration deals with this case
     AVDictionaryEntry *tag = NULL;
@@ -485,7 +486,11 @@ QVariantList AVPlayer::Private::getTracksInfo(AVDemuxer *demuxer, AVDemuxer::Str
         AVStream *stream = demuxer->formatContext()->streams[s];
         AVCodecContext *ctx = stream->codec;
         if (ctx) {
-            t[QStringLiteral("codec")] = QByteArray(avcodec_descriptor_get(ctx->codec_id)->name);
+            const AVCodecDescriptor* codec_desc = avcodec_descriptor_get(ctx->codec_id);
+            if (codec_desc)
+                t[QStringLiteral("codec")] = QByteArray(codec_desc->name);
+            else
+                continue;
             if (ctx->extradata)
                 t[QStringLiteral("extra")] = QByteArray((const char*)ctx->extradata, ctx->extradata_size);
         }
@@ -516,6 +521,8 @@ bool AVPlayer::Private::applySubtitleStream(int n, AVPlayer *player)
         return false;
     // FIXME: AVCodecDescriptor.name and AVCodec.name are different!
     const AVCodecDescriptor *codec_desc = avcodec_descriptor_get(ctx->codec_id);
+    if (!codec_desc)
+        return false;
     QByteArray codec(codec_desc->name);
     if (ctx->extradata)
         Q_EMIT player->internalSubtitleHeaderRead(codec, QByteArray((const char*)ctx->extradata, ctx->extradata_size));

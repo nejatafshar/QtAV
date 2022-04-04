@@ -5,6 +5,7 @@ TARGET = QtAV
 QT += core gui quick qml
 CONFIG += c++17
 #CONFIG *= ltcg
+greaterThan(QT_MAJOR_VERSION, 5): QT += opengl
 greaterThan(QT_MAJOR_VERSION, 4) {
   contains(QT_CONFIG, opengl) {
       CONFIG *= config_opengl
