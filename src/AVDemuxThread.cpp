@@ -643,16 +643,32 @@ void AVDemuxThread::run()
         Q_EMIT mediaStatusChanged(QtAV::BufferedMedia);
         Q_EMIT bufferProgressChanged(1);
 
-        auto fps = demuxer->frameRate();
-        if(fps<=0 || fps>1000 || isnan(fps))
+        std::atomic<double> fps = demuxer->frameRate();
+        if(fps<=0 || fps>1000 || isnan(fps.load()))
             fps = 20;
-
+        qint64 totalFrames = 0;
+        qint64 lastTotalFrames = 0;
+        QElapsedTimer elapsedTimer;
+        elapsedTimer.start();
         auto t = std::thread([&] {
           while (!end) {
               if (!demuxer->readFrame()) {
                   QThread::msleep(10);
                   continue;
               }
+
+              // calculate fps using exponential moving average
+              auto elapsed = elapsedTimer.elapsed();
+              if(elapsed>1000) {
+                  double alpha = totalFrames>0 ? 0.333 : 1.0;
+                  auto val = (static_cast<double>(totalFrames-lastTotalFrames)/elapsed)*1000;
+                  lastTotalFrames = totalFrames;
+                  fps = qMax((alpha * val) + (1.0 - alpha) * fps, 1.0);
+                  elapsedTimer.start();
+              }
+
+              ++totalFrames;
+
               while(!end && !packets.try_push(demuxer->packet()))
                 QThread::msleep(1);
           }
@@ -682,10 +698,13 @@ void AVDemuxThread::run()
             if(video_thread) {
                 auto ret = static_cast<VideoThread*>(video_thread)->decodePacket(pkt);
                 if(ret) {
-                    qreal duration = pkt.dts > 0 && (pkt.dts - last_dts)>0 ? pkt.dts - last_dts : pkt.duration;
-                    last_dts = pkt.dts;
-                    int wait = std::floor(psize<10 ? 990 : duration*(1000-psize*10));
-                    QThread::msleep(qMin(qMax(wait,0), int(1100/fps)));
+                    //qreal duration = pkt.dts > 0 && (pkt.dts - last_dts)>0 ? pkt.dts - last_dts : pkt.duration;
+                    //last_dts = pkt.dts;
+                    //int wait = std::floor((psize<10 ? 990 : (1000-psize*10)*duration));
+                    //wait = qMin(qMax(wait , 0), int(1100/fps));
+                    int wait = int((1000-psize*10)/fps);
+                    wait = qMin(qMax(wait , 0), 1000);
+                    QThread::msleep(wait);
                 }
             }
             packets.pop();
