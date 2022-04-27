@@ -638,7 +638,9 @@ void AVDemuxThread::run()
     AutoSem as(&sem);
     Q_UNUSED(as);
 
-    if(realtimeDecode) {
+    auto rd = !aqueue && realtimeDecode;
+
+    if(rd) {
         rigtorp::SPSCQueue<Packet> packets(20);
         Q_EMIT mediaStatusChanged(QtAV::BufferedMedia);
         Q_EMIT bufferProgressChanged(1);
@@ -714,7 +716,7 @@ void AVDemuxThread::run()
     }
 
     while (!end) {
-        if(realtimeDecode)
+        if(rd)
             break;
 
         processNextSeekTask();

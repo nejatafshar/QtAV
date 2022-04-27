@@ -380,7 +380,7 @@ void VideoThread::run()
             d.statistics->resetValues.store(false);
         }
 
-        if(d.clock->clockType() != AVClock::AudioClock && d.realtimeDecode) {
+        if(sync_video && d.realtimeDecode) {
             QThread::msleep(50);
             continue;
         }
