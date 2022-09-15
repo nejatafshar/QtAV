@@ -25,11 +25,13 @@
 #include "QtAV/AVDemuxer.h"
 #include "QtAV/AVDecoder.h"
 #include "VideoThread.h"
+#include "AudioThread.h"
 #include <QtCore/QTime>
 #include "utils/Logger.h"
 #include <QTimer>
 #include "SPSCQueue.h"
 #include <thread>
+#include <libavcodec/packet.h>
 
 #define RESUME_ONCE_ON_SEEK 0
 
@@ -638,10 +640,8 @@ void AVDemuxThread::run()
     AutoSem as(&sem);
     Q_UNUSED(as);
 
-    auto rd = !aqueue && realtimeDecode;
-
-    if(rd) {
-        rigtorp::SPSCQueue<Packet> packets(20);
+    if(realtimeDecode) {
+        rigtorp::SPSCQueue<Packet> packets(audio_thread ? 100 : 30);
         Q_EMIT mediaStatusChanged(QtAV::BufferedMedia);
         Q_EMIT bufferProgressChanged(1);
 
@@ -683,7 +683,7 @@ void AVDemuxThread::run()
             if(!packets.front())
                 continue;
             auto psize = packets.size();
-            if(psize>17)
+            if(psize>(packets.capacity()*0.9))
                 ++bufFullCount;
             else
                 bufFullCount = 0;
@@ -697,17 +697,15 @@ void AVDemuxThread::run()
                 continue;
             }
             pkt = *packets.front();
-            if(video_thread) {
-                auto ret = static_cast<VideoThread*>(video_thread)->decodePacket(pkt);
-                if(ret) {
-                    //qreal duration = pkt.dts > 0 && (pkt.dts - last_dts)>0 ? pkt.dts - last_dts : pkt.duration;
-                    //last_dts = pkt.dts;
-                    //int wait = std::floor((psize<10 ? 990 : (1000-psize*10)*duration));
-                    //wait = qMin(qMax(wait , 0), int(1100/fps));
-                    int wait = int((1000-psize*10)/fps);
-                    wait = qMin(qMax(wait , 0), 1000);
-                    QThread::msleep(wait);
-                }
+            bool ret = false;
+            if(video_thread && demuxer->videoStream()==pkt.asAVPacket()->stream_index)
+                ret = static_cast<VideoThread*>(video_thread)->decodePacket(pkt);
+            else if(audio_thread && demuxer->audioStream()==pkt.asAVPacket()->stream_index)
+                ret = static_cast<AudioThread*>(audio_thread)->decodePacket(pkt);
+            if(ret) {
+                int wait = int((1000-psize*10)/fps);
+                wait = qMin(qMax(wait , 0), 1000);
+                QThread::msleep(wait);
             }
             packets.pop();
         }
@@ -716,7 +714,7 @@ void AVDemuxThread::run()
     }
 
     while (!end) {
-        if(rd)
+        if(realtimeDecode)
             break;
 
         processNextSeekTask();

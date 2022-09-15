@@ -231,6 +231,8 @@ void AVPlayer::Private::applyRealtimeDecode()
 {
     if(vthread)
         vthread->setRealtimeDecode(realtimeDecode);
+    if(athread)
+        athread->setRealtimeDecode(realtimeDecode);
     if(read_thread)
         read_thread->realtimeDecode = realtimeDecode;
 }

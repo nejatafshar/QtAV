@@ -44,6 +44,7 @@ public:
         last_pts = 0;
     }
 
+    bool realtimeDecode = false;
     bool resample;
     qreal last_pts; //used when audio output is not available, to calculate the aproximate sleeping time
 };
@@ -51,6 +52,74 @@ public:
 AudioThread::AudioThread(QObject *parent)
     :AVThread(*new AudioThreadPrivate(), parent)
 {
+}
+
+void AudioThread::setRealtimeDecode(bool val)
+{
+    DPTR_D(AudioThread);
+    d.realtimeDecode = val;
+}
+
+bool AudioThread::decodePacket(Packet &pkt)
+{
+    DPTR_D(AudioThread);
+
+    //No decoder or output. No audio output is ok, just display picture
+    if (!d.dec || !d.dec->isAvailable() || !d.outputSet)
+        return false;
+
+    if (!pkt.isValid() && !pkt.isEOF()) // decode it will cause crash
+        return false;
+
+    AudioDecoder *dec = static_cast<AudioDecoder*>(d.dec);
+    if (!dec)
+        return false;
+    AudioOutput *ao = 0;
+    // first() is not null even if list empty
+    if (!d.outputSet->outputs().isEmpty())
+        ao = static_cast<AudioOutput*>(d.outputSet->outputs().first());
+
+    if (!dec->decode(pkt))
+        return false;
+
+    AudioFrame frame(dec->frame());
+    if (!frame)
+        return false;
+    if (frame.timestamp() <= 0)
+        frame.setTimestamp(pkt.pts); // pkt.pts is wrong. >= real timestamp
+
+    bool has_ao = ao && ao->isAvailable();
+    if (has_ao) {
+        applyFilters(frame);
+        frame.setAudioResampler(dec->resampler()); //!!!
+        // FIXME: resample ONCE is required for audio frames from ffmpeg
+        //if (ao->audioFormat() != frame.format()) {
+            frame = frame.to(ao->audioFormat());
+        //}
+    }
+    QByteArray decoded(frame.data());
+    int decodedSize = decoded.size();
+    int decodedPos = 0;
+    const qreal byte_rate = frame.format().bytesPerSecond();
+    qreal pts = frame.timestamp();
+    //qDebug("frame samples: %d @%.3f+%lld", frame.samplesPerChannel()*frame.channelCount(), frame.timestamp(), frame.duration()/1000LL);
+    while (decodedSize > 0) {
+        const int chunk = qMin(decodedSize, has_ao ? ao->bufferSize() : 512*frame.format().bytesPerFrame());//int(max_len*byte_rate));
+        //AudioFormat.bytesForDuration
+        const qreal chunk_delay = (qreal)chunk/(qreal)byte_rate;
+        if (has_ao && ao->isOpen()) {
+            QByteArray decodedChunk = QByteArray::fromRawData(decoded.constData() + decodedPos, chunk);
+            //qDebug("ao.timestamp: %.3f, pts: %.3f, pktpts: %.3f", ao->timestamp(), pts, pkt.pts);
+            ao->play(decodedChunk, pts);
+        }
+        decodedPos += chunk;
+        decodedSize -= chunk;
+        pts += chunk_delay;
+        pkt.pts += chunk_delay; // packet not fully decoded, use new pts in the next decoding
+        pkt.dts += chunk_delay;
+    }
+
+    return true;
 }
 
 void AudioThread::applyFilters(AudioFrame &frame)
@@ -87,6 +156,12 @@ void AudioThread::run()
     int sync_id = 0;
     while (!d.stop) {
         processNextTask();
+
+        if(d.realtimeDecode) {
+            QThread::msleep(1);
+            continue;
+        }
+
         if (d.render_pts0 < 0) { // no pause when seeking
             if (tryPause()) { //DO NOT continue, or stepForward() will fail
                 if (d.stop)
