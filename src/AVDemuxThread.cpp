@@ -703,7 +703,7 @@ void AVDemuxThread::run()
             else if(audio_thread && demuxer->audioStream()==pkt.asAVPacket()->stream_index)
                 ret = static_cast<AudioThread*>(audio_thread)->decodePacket(pkt);
             if(ret) {
-                int wait = int((1000-psize*10)/fps);
+                int wait = int((1000-psize*5)/fps);
                 wait = qMin(qMax(wait , 0), 1000);
                 QThread::msleep(wait);
             }
