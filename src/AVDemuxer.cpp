@@ -48,7 +48,7 @@ public:
         Read
     };
     //default network timeout: 30000
-    InterruptHandler(AVDemuxer* demuxer, int timeout = 30000)
+    InterruptHandler(AVDemuxer* demuxer, int timeout = 5000)
       : mStatus(0)
       , mTimeout(timeout)
       , mTimeoutAbort(true)

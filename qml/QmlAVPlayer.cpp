@@ -59,7 +59,7 @@ QmlAVPlayer::QmlAVPlayer(QObject *parent) :
   , mError(NoError)
   , mpPlayer(0)
   , mChannelLayout(ChannelLayoutAuto)
-  , m_timeout(30000)
+  , m_timeout(5000)
   , m_abort_timeout(true)
   , m_audio_track(0)
   , m_video_track(0)
