@@ -102,6 +102,8 @@ AVPlayer::AVPlayer(QObject *parent) :
 
     connect(this, SIGNAL(mediaStatusChanged(QtAV::MediaStatus)), this, SLOT(onMediaStatusChanged(QtAV::MediaStatus)));
 
+    QObject::connect(this, SIGNAL(sourceChanged()), this, SLOT(tryClearVideoRenderers()), Qt::DirectConnection);
+
     //audio()->setBackends(QStringList()<<"null");
 
     d->applyMediaDataCalculation();
@@ -1614,7 +1616,7 @@ void AVPlayer::tryClearVideoRenderers()
         qWarning("internal error");
         return;
     }
-    if (!(mediaEndAction() & MediaEndAction_KeepDisplay)) {
+    if (!(mediaEndAction() & MediaEndAction_KeepDisplay) && file().isEmpty()) {
         d->vthread->clearRenderers();
     }
 }

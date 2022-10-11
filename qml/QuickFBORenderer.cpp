@@ -162,7 +162,8 @@ void QuickFBORenderer::setSource(QObject *source)
     if(p0)
     {
         p0->removeVideoRenderer(this);
-        receive(VideoFrame());
+        if(!(p0->mediaEndAction() & MediaEndAction_KeepDisplay) && p0->file().isEmpty())
+            receive(VideoFrame());
     }
 
     d.source = source;
