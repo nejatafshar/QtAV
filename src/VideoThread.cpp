@@ -97,7 +97,6 @@ public:
     VideoCapture *capture;
     VideoFilterContext *filter_context;//TODO: use own smart ptr. QSharedPointer "=" is ugly
     VideoFrame displayed_frame;
-    bool realtimeDecode = false;
     bool wait_key_frame = false;
     VideoThread* q_ptr;
 };
@@ -221,12 +220,6 @@ void VideoThread::setEQ(int b, int c, int s)
         task->run();
         delete task;
     }
-}
-
-void VideoThread::setRealtimeDecode(bool val)
-{
-    DPTR_D(VideoThread);
-    d.realtimeDecode = val;
 }
 
 bool VideoThread::decodePacket(Packet &pkt)
@@ -367,6 +360,7 @@ void VideoThread::run()
     const char* pkt_data = NULL; // workaround for libav9 decode fail but error code >= 0
     qint64 last_deliver_time = 0;
     int sync_id = 0;
+    auto realtimeDecode = player->realtimeDecode();
     while (!d.stop) {
         processNextTask();
 
@@ -380,7 +374,7 @@ void VideoThread::run()
             d.statistics->resetValues.store(false);
         }
 
-        if(sync_video && d.realtimeDecode) {
+        if(realtimeDecode) {
             QThread::msleep(50);
             continue;
         }

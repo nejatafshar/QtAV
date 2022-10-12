@@ -36,8 +36,6 @@ class AudioThread : public AVThread
 public:
     explicit AudioThread(QObject *parent = 0);
 
-    void setRealtimeDecode(bool val);
-
     bool decodePacket(Packet& pkt);
 
 protected:

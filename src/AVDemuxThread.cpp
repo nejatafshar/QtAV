@@ -32,6 +32,7 @@
 #include "SPSCQueue.h"
 #include <thread>
 #include <libavcodec/packet.h>
+#include "AVPlayer.h"
 
 #define RESUME_ONCE_ON_SEEK 0
 
@@ -639,6 +640,8 @@ void AVDemuxThread::run()
 
     AutoSem as(&sem);
     Q_UNUSED(as);
+
+    bool realtimeDecode = qobject_cast<AVPlayer*>(parent())->realtimeDecode();
 
     if(realtimeDecode) {
         rigtorp::SPSCQueue<Packet> packets(audio_thread ? 100 : 30);

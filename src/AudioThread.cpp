@@ -33,6 +33,7 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDateTime>
 #include "utils/Logger.h"
+#include "AVPlayer.h"
 
 namespace QtAV {
 
@@ -44,7 +45,6 @@ public:
         last_pts = 0;
     }
 
-    bool realtimeDecode = false;
     bool resample;
     qreal last_pts; //used when audio output is not available, to calculate the aproximate sleeping time
 };
@@ -52,12 +52,6 @@ public:
 AudioThread::AudioThread(QObject *parent)
     :AVThread(*new AudioThreadPrivate(), parent)
 {
-}
-
-void AudioThread::setRealtimeDecode(bool val)
-{
-    DPTR_D(AudioThread);
-    d.realtimeDecode = val;
 }
 
 bool AudioThread::decodePacket(Packet &pkt)
@@ -154,10 +148,11 @@ void AudioThread::run()
     qint64 fake_duration = 0LL;
     qint64 fake_pts = 0LL;
     int sync_id = 0;
+    auto realtimeDecode = qobject_cast<AVPlayer*>(parent())->realtimeDecode();
     while (!d.stop) {
         processNextTask();
 
-        if(d.realtimeDecode) {
+        if(realtimeDecode) {
             QThread::msleep(1);
             continue;
         }

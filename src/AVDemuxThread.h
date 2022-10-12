@@ -116,9 +116,6 @@ private:
     int clock_type; // change happens in different threads(direct connection)
     friend class SeekTask;
     friend class stepBackwardTask;
-
-public:
-    bool realtimeDecode = false;
 };
 
 } //namespace QtAV

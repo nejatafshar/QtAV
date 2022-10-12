@@ -47,7 +47,6 @@ public:
     void setContrast(int val);
     void setSaturation(int val);
     void setEQ(int b, int c, int s);
-    void setRealtimeDecode(bool val);
 
     bool decodePacket(Packet& pkt);
 
