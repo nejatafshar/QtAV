@@ -152,7 +152,9 @@ AVPlayer::AVPlayer(QObject *parent) :
 
     class LoadWorker : public QRunnable {
     public:
-        LoadWorker(AVPlayer *player) : m_player(player) {}
+        LoadWorker(AVPlayer *player) : m_player(player) {
+            setAutoDelete(true);
+        }
         virtual void run() {
             if (!m_player)
                 return;
@@ -1326,7 +1328,9 @@ bool AVPlayer::load()
 
     class LoadWorker : public QRunnable {
     public:
-        LoadWorker(AVPlayer *player) : m_player(player) {}
+        LoadWorker(AVPlayer *player) : m_player(player) {
+            setAutoDelete(true);
+        }
         virtual void run() {
             if (!m_player)
                 return;
@@ -1345,7 +1349,9 @@ void AVPlayer::play()
     if(d->async_load) {
         class LoadWorker : public QRunnable {
         public:
-            LoadWorker(AVPlayer *player, Private * p) : m_player(player),m_private(p)  {}
+            LoadWorker(AVPlayer *player, Private * p) : m_player(player),m_private(p)  {
+                setAutoDelete(true);
+            }
             virtual void run() {
                 if (!m_player)
                     return;
