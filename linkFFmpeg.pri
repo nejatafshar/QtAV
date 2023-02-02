@@ -61,3 +61,23 @@ else:android:{
     }
 
 }
+else:macx:{
+    INCLUDEPATH += $$PWD/ffmpegBin/linux/64/include
+    LIBS += -L$$PWD/ffmpegBin/mac/lib
+    LIBS += -L$$PWD/ffmpegBin/mac/lib/ -lavdevice
+    LIBS += -L$$PWD/ffmpegBin/mac/lib/ -lavfilter
+    LIBS += -L$$PWD/ffmpegBin/mac/lib/ -lavformat
+    LIBS += -L$$PWD/ffmpegBin/mac/lib/ -lavcodec
+    LIBS += -L$$PWD/ffmpegBin/mac/lib/ -lavutil
+    LIBS += -L$$PWD/ffmpegBin/mac/lib/ -lswresample
+    LIBS += -L$$PWD/ffmpegBin/mac/lib/ -lswscale
+}
+else:mac:{ #ios
+    INCLUDEPATH += $$PWD/ffmpegBin/linux/64/include
+    LIBS += -L$$PWD/ffmpegBin/ios/lib/ -lavfilter
+    LIBS += -L$$PWD/ffmpegBin/ios/lib/ -lavformat
+    LIBS += -L$$PWD/ffmpegBin/ios/lib/ -lavcodec
+    LIBS += -L$$PWD/ffmpegBin/ios/lib/ -lavutil
+    LIBS += -L$$PWD/ffmpegBin/ios/lib/ -lswresample
+    LIBS += -L$$PWD/ffmpegBin/ios/lib/ -lswscale
+}
